@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/app/components/ui/toaster";
 import Providers from "./providers";
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "هوّك | Hook Agency - أفضل وكالة تسويق إلكتروني",
   description:
@@ -121,8 +110,8 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-        style={{ fontFamily: "'Cairo', 'Geist', sans-serif" }}
+        className="antialiased bg-background text-foreground"
+        style={{ fontFamily: "'Cairo', sans-serif" }}
         suppressHydrationWarning
       >
            <Providers>{children}</Providers>

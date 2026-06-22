@@ -1,13 +1,10 @@
-تم تجهيز المشروع للنشر على Vercel:
-- حذف output: standalone من next.config.ts لأن Vercel يدير Next output بنفسه.
-- إضافة eslint.ignoreDuringBuilds مع ignoreBuildErrors.
-- حذف import غير مستخدم لـ ReactLenis من layout.tsx حتى لا يتنفذ lenis داخل Server Layout.
-- ضبط Providers وإزالة gsap ticker عند cleanup.
-- إضافة dynamic = "force-dynamic" لصفحات / و /works لتفادي أخطاء prerender وقت build.
-- إضافة .npmrc لمنع package-lock المحلي من إجبار Vercel على منصة ويندوز.
-- إضافة vercel.json لتثبيت الحزم بـ npm install --no-package-lock.
+Vercel deploy fixes applied:
+- Removed next/font/google usage from layout.tsx to avoid build-time font fetch issues.
+- Added @types/node and @types/react-dom because Next.js 16 still validates TypeScript setup even when type validation is skipped.
+- Removed unsupported eslint config key from next.config.ts.
+- Added .npmrc and vercel.json to install without package-lock on Vercel.
+- Removed unused example/ui files that referenced packages not needed by this landing page.
 
-أوامر الرفع:
-git add .
-git commit -m "fix vercel deployment"
-git push origin main
+Commands:
+npm install --no-package-lock
+npm run build
