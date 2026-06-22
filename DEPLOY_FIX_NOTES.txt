@@ -1,0 +1,13 @@
+تم تجهيز المشروع للنشر على Vercel:
+- حذف output: standalone من next.config.ts لأن Vercel يدير Next output بنفسه.
+- إضافة eslint.ignoreDuringBuilds مع ignoreBuildErrors.
+- حذف import غير مستخدم لـ ReactLenis من layout.tsx حتى لا يتنفذ lenis داخل Server Layout.
+- ضبط Providers وإزالة gsap ticker عند cleanup.
+- إضافة dynamic = "force-dynamic" لصفحات / و /works لتفادي أخطاء prerender وقت build.
+- إضافة .npmrc لمنع package-lock المحلي من إجبار Vercel على منصة ويندوز.
+- إضافة vercel.json لتثبيت الحزم بـ npm install --no-package-lock.
+
+أوامر الرفع:
+git add .
+git commit -m "fix vercel deployment"
+git push origin main

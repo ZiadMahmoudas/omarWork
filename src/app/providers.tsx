@@ -5,24 +5,26 @@ import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
-
 function LenisGsapSync() {
   const lenis = useLenis();
 
   useEffect(() => {
     if (!lenis) return;
 
-    lenis.on("scroll", ScrollTrigger.update);
+    gsap.registerPlugin(ScrollTrigger);
 
-    gsap.ticker.add((time) => {
+    const updateScrollTrigger = () => ScrollTrigger.update();
+    const raf = (time: number) => {
       lenis.raf(time * 1000);
-    });
+    };
 
+    lenis.on("scroll", updateScrollTrigger);
+    gsap.ticker.add(raf);
     gsap.ticker.lagSmoothing(0);
 
     return () => {
-      lenis.off("scroll", ScrollTrigger.update);
+      lenis.off("scroll", updateScrollTrigger);
+      gsap.ticker.remove(raf);
     };
   }, [lenis]);
 
