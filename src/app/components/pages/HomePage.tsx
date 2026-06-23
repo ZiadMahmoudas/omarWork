@@ -18,13 +18,15 @@ import {
 
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen bg-[#0A0A0A] overflow-x-hidden">
+    <main className="relative min-h-screen overflow-x-hidden bg-[#0A0A0A]">
       <Navbar />
+
       <HookRig />
 
-      {/* لو ده بيحرك كروت بس خليه، لو بيبعت hook:pull شيله */}
+      {/* ده للكروت بس، ومش بيحرك الخطاف */}
       <GsapCardFields />
 
+      {/* ده الوحيد اللي بيبعت حركة للخطاف على السكاشن */}
       <PinSectionsFlow />
 
       <section className="hook-scene">

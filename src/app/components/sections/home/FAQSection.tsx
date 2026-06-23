@@ -35,9 +35,9 @@ export default function FAQSection() {
           </div>
         </HookPullSection>
 
-        <div className="gsap-stacked-deck faq-stack">
+        <div className="gsap-stacked-deck faq-stack flex flex-col gap-25">
           {faqs.map((faq, i) => (
-            <div key={i} className="gsap-card-item">
+            <div key={i} >
               <div className="faq-stack-card min-h-[100px] rounded-3xl border border-white/[0.06] hover:border-white/[0.1] bg-[#0F0F0F] overflow-hidden transition-colors">
                 <button onClick={() => setOpenIndex(openIndex === i ? null : i)} className="w-full flex items-center justify-between p-7 md:p-9 text-right">
                   <span className="text-white font-black text-xl md:text-2xl leading-relaxed">{faq.q}</span>

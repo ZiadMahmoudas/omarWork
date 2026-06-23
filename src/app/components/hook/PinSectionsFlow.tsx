@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -8,99 +8,183 @@ gsap.registerPlugin(ScrollTrigger);
 
 type PullPhase = "drop" | "catch" | "pull" | "release";
 
+type HookPayload = {
+  progress: number;
+  active: number;
+  phase: PullPhase;
+  velocity: number;
+};
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
 function getPhase(progress: number): PullPhase {
-  if (progress < 0.3) return "drop";
-  if (progress < 0.43) return "catch";
+  if (progress < 0.34) return "drop";
+  if (progress < 0.5) return "catch";
   if (progress < 0.86) return "pull";
   return "release";
 }
 
-function emitHookPull(progress: number, active: number) {
-  window.dispatchEvent(
-    new CustomEvent("hook:pull", {
-      detail: {
-        progress,
-        active,
-        phase: getPhase(progress),
-      },
-    })
-  );
-}
-
-function emitHookIdle() {
-  window.dispatchEvent(new CustomEvent("hook:idle"));
-}
-
-function getTopLevelSections() {
-  const main = document.querySelector("main");
-  if (!main) return [];
-
-  return Array.from(main.children).filter(
-    (item): item is HTMLElement => item instanceof HTMLElement && item.tagName === "SECTION"
-  );
-}
-
 export default function PinSectionsFlow() {
+  const rafRef = useRef<number | null>(null);
+  const payloadRef = useRef<HookPayload | null>(null);
+
   useLayoutEffect(() => {
+    const emitHook = (payload: HookPayload) => {
+      payloadRef.current = payload;
+
+      if (rafRef.current) return;
+
+      rafRef.current = requestAnimationFrame(() => {
+        if (payloadRef.current) {
+          window.dispatchEvent(
+            new CustomEvent("hook:pull", {
+              detail: payloadRef.current,
+            })
+          );
+        }
+
+        rafRef.current = null;
+      });
+    };
+
+    const emitIdle = () => {
+      window.dispatchEvent(new CustomEvent("hook:idle"));
+    };
+
     const ctx = gsap.context(() => {
       const mm = gsap.matchMedia();
 
       mm.add("(min-width: 1024px)", () => {
-        const pinnedSections = gsap.utils.toArray<HTMLElement>(".pin-card");
-        const hookSections = getTopLevelSections();
+        const sections = gsap.utils.toArray<HTMLElement>("main > .hook-scene");
 
-        emitHookIdle();
+        emitIdle();
 
-        pinnedSections.forEach((section, index) => {
-          const nextSection = pinnedSections[index + 1];
-          if (!nextSection) return;
+        sections.forEach((section, index) => {
+          const content = section.firstElementChild as HTMLElement | null;
+
+          if (content) {
+            gsap.set(section, {
+              position: "relative",
+              isolation: "isolate",
+            });
+
+            gsap.fromTo(
+              content,
+              {
+                y: index === 0 ? 0 : 82,
+                autoAlpha: index === 0 ? 1 : 0,
+                scale: index === 0 ? 1 : 0.975,
+                filter: index === 0 ? "blur(0px)" : "blur(10px)",
+                transformPerspective: 1200,
+                transformOrigin: "center center",
+              },
+              {
+                y: 0,
+                autoAlpha: 1,
+                scale: 1,
+                filter: "blur(0px)",
+                duration: 0.95,
+                ease: "power3.out",
+                clearProps: "transform,opacity,visibility,filter",
+                scrollTrigger: {
+                  trigger: section,
+                  start: "top 84%",
+                  once: true,
+                },
+              }
+            );
+          }
 
           ScrollTrigger.create({
             trigger: section,
-            start: "top top",
-            endTrigger: nextSection,
-            end: "top top",
-            pin: true,
-            pinSpacing: false,
-            anticipatePin: 1,
+            start: "top 90%",
+            end: "top 18%",
+            scrub: 0.45,
             invalidateOnRefresh: true,
-            refreshPriority: 1,
-          });
-        });
-
-        hookSections.forEach((section, index) => {
-          const nextSection = hookSections[index + 1];
-          if (!nextSection) return;
-
-          ScrollTrigger.create({
-            trigger: nextSection,
-            start: "top bottom",
-            end: "top top",
-            scrub: true,
-            invalidateOnRefresh: true,
-            refreshPriority: 3,
-            onEnter: () => emitHookPull(0, index + 1),
-            onEnterBack: () => emitHookPull(1, index + 1),
-            onLeave: () => emitHookIdle(),
-            onLeaveBack: () => emitHookIdle(),
+            fastScrollEnd: true,
+            refreshPriority: 5,
+            onEnter: (self) => {
+              emitHook({
+                progress: 0,
+                active: index,
+                phase: "drop",
+                velocity: Math.abs(self.getVelocity()),
+              });
+            },
             onUpdate: (self) => {
-              emitHookPull(self.progress, index + 1);
+              const progress = clamp01(self.progress);
+
+              emitHook({
+                progress,
+                active: index,
+                phase: getPhase(progress),
+                velocity: Math.abs(self.getVelocity()),
+              });
+            },
+            onLeave: (self) => {
+              emitHook({
+                progress: 1,
+                active: index,
+                phase: "release",
+                velocity: Math.abs(self.getVelocity()),
+              });
+            },
+            onLeaveBack: (self) => {
+              emitHook({
+                progress: 0,
+                active: index,
+                phase: "drop",
+                velocity: Math.abs(self.getVelocity()),
+              });
             },
           });
         });
 
-        const refresh = () => ScrollTrigger.refresh();
-        window.addEventListener("load", refresh);
-        requestAnimationFrame(refresh);
+        const refreshCall = gsap.delayedCall(0.35, () => {
+          ScrollTrigger.refresh();
+        });
 
         return () => {
-          window.removeEventListener("load", refresh);
-          emitHookIdle();
+          refreshCall.kill();
+          emitIdle();
         };
       });
 
       mm.add("(max-width: 1023px)", () => {
-        emitHookIdle();
+        emitIdle();
+
+        const sections = gsap.utils.toArray<HTMLElement>("main > .hook-scene");
+
+        sections.forEach((section, index) => {
+          const content = section.firstElementChild as HTMLElement | null;
+          if (!content) return;
+
+          gsap.fromTo(
+            content,
+            {
+              y: index === 0 ? 0 : 48,
+              autoAlpha: index === 0 ? 1 : 0,
+              filter: index === 0 ? "blur(0px)" : "blur(8px)",
+            },
+            {
+              y: 0,
+              autoAlpha: 1,
+              filter: "blur(0px)",
+              duration: 0.75,
+              ease: "power3.out",
+              clearProps: "transform,opacity,visibility,filter",
+              scrollTrigger: {
+                trigger: section,
+                start: "top 88%",
+                once: true,
+              },
+            }
+          );
+        });
+
+        return () => emitIdle();
       });
 
       return () => mm.revert();
@@ -108,7 +192,13 @@ export default function PinSectionsFlow() {
 
     return () => {
       ctx.revert();
-      emitHookIdle();
+
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+
+      emitIdle();
     };
   }, []);
 
