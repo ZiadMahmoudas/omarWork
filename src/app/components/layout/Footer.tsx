@@ -11,8 +11,7 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-14">
           <div>
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9"><img src="/logo.png" alt="هوّك" className="w-full h-full object-contain" /></div>
-              <div className="leading-none"><span className="text-lg font-black text-white">HOOK</span><span className="block text-[8px] text-hook-red font-bold">هوّك</span></div>
+              <div className="w-45 h-45"><img src="/logo.png" alt="هوّك" className="w-full h-full object-contain" /></div>
             </div>
             <p className="text-gray-500 text-sm leading-relaxed">مؤسسة هوّك | Hook Agency أفضل وكالة تسويق إلكتروني في مصر والوطن العربي.</p>
           </div>

@@ -18,9 +18,9 @@ function clamp01(value: number) {
 }
 
 function getPhase(progress: number): PullPhase {
-  if (progress < 0.34) return "drop";
-  if (progress < 0.5) return "catch";
-  if (progress < 0.86) return "pull";
+  if (progress < 0.38) return "drop";
+  if (progress < 0.58) return "catch";
+  if (progress < 0.88) return "pull";
   return "release";
 }
 
@@ -33,6 +33,7 @@ export default function HookRig() {
 
   const lastPhaseRef = useRef<PullPhase>("release");
   const lastActiveRef = useRef<number | null>(null);
+  const pausedRef = useRef(false);
 
   useEffect(() => {
     const reel = reelRef.current;
@@ -42,7 +43,6 @@ export default function HookRig() {
     if (!reel || !rope || !hook) return;
 
     const glow = glowRef.current;
-
     const sparks = sparksRef.current
       ? (Array.from(sparksRef.current.children) as HTMLElement[])
       : [];
@@ -50,20 +50,13 @@ export default function HookRig() {
     const redParts = hook.querySelectorAll<SVGPathElement>("[data-hook-red]");
     const hookBody = hook.querySelector<SVGGElement>("[data-hook-body]");
 
-    const IDLE_LENGTH = 50;
-    const MAX_DROP = 335;
-
-    /**
-     * مهم:
-     * الـ SVG viewBox عرضه 687
-     * الخط العمودي جوه الـ SVG عند x حوالي 575
-     * فلو عرض الـ SVG = 72
-     * نقطة الربط = 575 / 687 * 72 = حوالي 60px
-     * والـ rope عرضه 4px، مركزه 2px
-     * إذن left = 2 - 60 = -58
-     */
+    const IDLE_LENGTH = 54;
+    const MAX_DROP = Math.max(390, Math.min(560, window.innerHeight * 0.62));
     const HOOK_ATTACH_LEFT = -58;
     const HOOK_ATTACH_TOP_OVERLAP = -1;
+
+    let lastExternalEventAt = 0;
+    let fallbackRaf = 0;
 
     const state = {
       length: IDLE_LENGTH,
@@ -101,17 +94,8 @@ export default function HookRig() {
       });
     }
 
-    gsap.set(glow, {
-      opacity: 0.22,
-      scale: 1,
-    });
-
-    gsap.set(sparks, {
-      opacity: 0,
-      x: 0,
-      y: 0,
-      scale: 0,
-    });
+    gsap.set(glow, { opacity: 0.22, scale: 1 });
+    gsap.set(sparks, { opacity: 0, x: 0, y: 0, scale: 0 });
 
     const render = () => {
       gsap.set(rope, {
@@ -119,11 +103,6 @@ export default function HookRig() {
         scaleX: state.ropeScale,
       });
 
-      /**
-       * أهم نقطة:
-       * الخطاف بياخد نفس طول الخيط فقط.
-       * مفيش x ومفيش rotate عشان الخط يفضل راكب صح.
-       */
       gsap.set(hook, {
         y: state.length + HOOK_ATTACH_TOP_OVERLAP,
         x: 0,
@@ -179,12 +158,34 @@ export default function HookRig() {
           glowScale: 1,
           hookStretch: 1,
         },
-        0.35,
+        0.36,
         "power3.out"
       );
 
       lastPhaseRef.current = "release";
       lastActiveRef.current = null;
+    };
+
+    const pauseHook = () => {
+      pausedRef.current = true;
+      idle();
+      gsap.to([reel, rope, hook], {
+        opacity: 0.42,
+        duration: 0.22,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    };
+
+    const resumeHook = () => {
+      pausedRef.current = false;
+      idle();
+      gsap.to([reel, rope, hook], {
+        opacity: 1,
+        duration: 0.22,
+        ease: "power2.out",
+        overwrite: true,
+      });
     };
 
     const catchFlash = (active?: number) => {
@@ -207,15 +208,15 @@ export default function HookRig() {
       gsap.fromTo(
         state,
         {
-          scale: 1.12,
-          ropeScale: 1.55,
-          hookStretch: 1.04,
+          scale: 1.13,
+          ropeScale: 1.65,
+          hookStretch: 1.055,
         },
         {
           scale: 1,
           ropeScale: 1,
           hookStretch: 1,
-          duration: 0.55,
+          duration: 0.62,
           ease: "elastic.out(1, 0.35)",
           overwrite: true,
           onUpdate: render,
@@ -224,12 +225,7 @@ export default function HookRig() {
 
       gsap.fromTo(
         sparks,
-        {
-          opacity: 1,
-          x: 0,
-          y: 0,
-          scale: 1,
-        },
+        { opacity: 1, x: 0, y: 0, scale: 1 },
         {
           opacity: 0,
           x: (i) => -28 - i * 9,
@@ -243,74 +239,135 @@ export default function HookRig() {
       );
     };
 
-    const onPull = (event: Event) => {
-      const detail = (event as CustomEvent<PullDetail>).detail || {};
-      const p = clamp01(detail.progress ?? 0);
-      const phase = detail.phase || getPhase(p);
-      const velocity = Math.abs(detail.velocity ?? 0);
+    const runPull = (
+      rawProgress: number,
+      active?: number,
+      velocity = 0,
+      explicitPhase?: PullPhase
+    ) => {
+      const p = clamp01(rawProgress);
+      const phase = explicitPhase || getPhase(p);
 
       const rigDuration =
-        velocity > 4200 ? 0.055 :
-        velocity > 2600 ? 0.085 :
-        velocity > 1400 ? 0.13 :
-        0.22;
-
+        velocity > 4200 ? 0.055 : velocity > 2600 ? 0.085 : velocity > 1400 ? 0.13 : 0.22;
       const rigEase = velocity > 2600 ? "power4.out" : "power3.out";
 
-      /**
-       * ينزل -> يمسك -> يشد لفوق -> يرجع يستعد.
-       */
+      // نزول واضح + مسكة في النص + طلعة بعد ما السكشن يستقر
       const dropAmount =
-        p < 0.34
-          ? p / 0.34
-          : p < 0.56
-          ? 1
-          : Math.max(0, 1 - (p - 0.56) / 0.44);
+        p < 0.42
+          ? p / 0.42
+          : p < 0.72
+            ? 1
+            : Math.max(0, 1 - (p - 0.72) / 0.28);
 
       const pullPower = Math.sin(p * Math.PI);
       const snap = phase === "catch" ? 1 : 0;
-
       const length = IDLE_LENGTH + dropAmount * MAX_DROP;
 
-      spin.timeScale(1 + pullPower * 3.4 + snap * 2);
+      spin.timeScale(1 + pullPower * 3.4 + snap * 2.2);
 
       moveRig(
         {
           length,
-          scale: 1 + pullPower * 0.045 + snap * 0.04,
-          ropeScale: 1 + pullPower * 0.42 + snap * 0.22,
+          scale: 1 + pullPower * 0.055 + snap * 0.04,
+          ropeScale: 1 + pullPower * 0.45 + snap * 0.28,
           glowOpacity: 0.22 + pullPower * 0.72 + snap * 0.18,
-          glowScale: 1 + pullPower * 0.8,
-          hookStretch: 1 + pullPower * 0.035,
+          glowScale: 1 + pullPower * 0.82,
+          hookStretch: 1 + pullPower * 0.04,
         },
         rigDuration,
         rigEase
       );
 
       if (phase === "catch" && lastPhaseRef.current !== "catch") {
-        catchFlash(detail.active);
+        catchFlash(active);
       }
 
       lastPhaseRef.current = phase;
     };
 
+    const onPull = (event: Event) => {
+      lastExternalEventAt = Date.now();
+      if (pausedRef.current) return;
+
+      const detail = (event as CustomEvent<PullDetail>).detail || {};
+      const p = clamp01(detail.progress ?? 0);
+      const velocity = Math.abs(detail.velocity ?? 0);
+
+      runPull(p, detail.active, velocity, detail.phase);
+    };
+
+    // fallback بسيط: لو PinSectionsFlow لأي سبب مبعتش event، الخطاف يقرأ السكاشن بنفسه
+    const fallbackFromVisibleSection = () => {
+      fallbackRaf = 0;
+
+      if (pausedRef.current) return;
+      if (Date.now() - lastExternalEventAt < 160) return;
+
+      const scenes = Array.from(
+        document.querySelectorAll<HTMLElement>("main > .hook-scene")
+      );
+
+      const vh = window.innerHeight;
+      const start = vh * 0.92;
+      const end = vh * 0.2;
+
+      let best: { progress: number; index: number; score: number } | null = null;
+
+      scenes.forEach((scene, index) => {
+        const rect = scene.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > vh) return;
+
+        const progress = clamp01((start - rect.top) / (start - end));
+        const score = Math.abs(rect.top - vh * 0.45);
+
+        if (!best || score < best.score) {
+          best = { progress, index, score };
+        }
+      });
+
+      const chosen = best as { progress: number; index: number; score: number } | null;
+
+      if (chosen) {
+        runPull(chosen.progress, chosen.index, 0, getPhase(chosen.progress));
+      }
+    };
+
+    const onScroll = () => {
+      if (fallbackRaf) return;
+      fallbackRaf = requestAnimationFrame(fallbackFromVisibleSection);
+    };
+
     window.addEventListener("hook:pull", onPull);
     window.addEventListener("hook:idle", idle);
+    window.addEventListener("hook:pause", pauseHook);
+    window.addEventListener("hook:resume", resumeHook);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     render();
     idle();
+    requestAnimationFrame(fallbackFromVisibleSection);
 
     return () => {
       spin.kill();
       gsap.killTweensOf(state);
 
+      if (fallbackRaf) {
+        cancelAnimationFrame(fallbackRaf);
+      }
+
       window.removeEventListener("hook:pull", onPull);
       window.removeEventListener("hook:idle", idle);
+      window.removeEventListener("hook:pause", pauseHook);
+      window.removeEventListener("hook:resume", resumeHook);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
   return (
-    <div className="fixed right-0 top-[58px] z-[9999] hidden h-[calc(100vh-58px)] w-[124px] pointer-events-none lg:block">
+    <div className="pointer-events-none fixed right-0 top-[58px] z-[9999] hidden h-[calc(100vh-58px)] w-[124px] lg:block">
       <div className="absolute right-3 top-2 z-[10002]">
         <div className="relative flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-hook-red/50 bg-[#070707]/95 shadow-[0_0_42px_rgba(200,0,0,0.3)]">
           <div
@@ -334,13 +391,10 @@ export default function HookRig() {
       <div className="absolute right-[42px] top-[45px] z-[10001] w-[4px]">
         <div
           ref={ropeRef}
-          className="h-[50px] w-full origin-top rounded-full bg-gradient-to-b from-hook-red/20 via-hook-red/95 to-hook-red/55 shadow-[0_0_18px_rgba(200,0,0,0.55)] will-change-transform"
+          className="h-[54px] w-full origin-top rounded-full bg-gradient-to-b from-hook-red/20 via-hook-red/95 to-hook-red/55 shadow-[0_0_18px_rgba(200,0,0,0.55)] will-change-transform"
         />
 
-        <div
-          ref={hookRef}
-          className="absolute top-0 z-[10003] will-change-transform"
-        >
+        <div ref={hookRef} className="absolute top-0 z-[10003] will-change-transform">
           <div
             ref={glowRef}
             className="absolute -inset-16 rounded-full bg-hook-red/20 blur-3xl"

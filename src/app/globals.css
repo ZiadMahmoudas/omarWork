@@ -499,3 +499,48 @@ body {
   }
 }
 
+
+
+/* Hook catches the section itself, not cards */
+@media (min-width: 1024px) {
+  main > .hook-scene::before {
+    content: "";
+    position: absolute;
+    right: 92px;
+    top: 50%;
+    z-index: 60;
+    width: 132px;
+    height: 2px;
+    pointer-events: none;
+    transform: translateY(-50%) scaleX(var(--hook-catch-scale, 0));
+    transform-origin: right center;
+    opacity: var(--hook-catch-opacity, 0);
+    background: linear-gradient(to left, rgba(200,0,0,.95), rgba(200,0,0,.45), transparent);
+    box-shadow: 0 0 24px rgba(200,0,0,.45);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  main > .hook-scene::after {
+    content: "";
+    position: absolute;
+    right: 82px;
+    top: 50%;
+    z-index: 61;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    pointer-events: none;
+    transform: translateY(-50%) scale(var(--hook-catch-dot-scale, 0));
+    opacity: var(--hook-catch-opacity, 0);
+    background: #c80000;
+    box-shadow: 0 0 28px rgba(200,0,0,.95), 0 0 80px rgba(200,0,0,.3);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .process-pin-zone::before,
+  .process-pin-zone::after,
+  .gsap-card-item::before,
+  .gsap-card-item::after {
+    content: none !important;
+  }
+}

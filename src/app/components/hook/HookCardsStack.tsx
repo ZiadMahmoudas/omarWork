@@ -84,19 +84,6 @@ export default function HookCardsStack({ children }: { children: React.ReactNode
             end: 'top top',
             scrub: true,
             invalidateOnRefresh: true,
-            onEnter: () => {
-              window.dispatchEvent(
-                new CustomEvent('hook:pull', {
-                  detail: { progress: 0, active: index + 1 },
-                })
-              )
-            },
-            onLeave: () => {
-              window.dispatchEvent(new CustomEvent('hook:idle'))
-            },
-            onLeaveBack: () => {
-              window.dispatchEvent(new CustomEvent('hook:idle'))
-            },
             onUpdate: (self) => {
               const p = self.progress
               const pull = Math.sin(p * Math.PI)
@@ -126,26 +113,16 @@ export default function HookCardsStack({ children }: { children: React.ReactNode
                   scale: 0.85 + pull * 1.05,
                 })
               }
-
-              window.dispatchEvent(
-                new CustomEvent('hook:pull', {
-                  detail: { progress: p, active: index + 1 },
-                })
-              )
             },
           })
         })
 
         ScrollTrigger.refresh()
 
-        return () => {
-          window.dispatchEvent(new CustomEvent('hook:idle'))
-        }
+        return () => {}
       })
 
-      mm.add('(max-width: 1023px)', () => {
-        window.dispatchEvent(new CustomEvent('hook:idle'))
-      })
+      mm.add('(max-width: 1023px)', () => {})
 
       return () => mm.revert()
     },

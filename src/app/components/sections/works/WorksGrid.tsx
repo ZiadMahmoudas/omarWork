@@ -5,11 +5,12 @@ import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowUpRight } from "lucide-react";
-import { works } from "./worksData";
+import { WorksContent, defaultWorksContent } from "@/app/lib/cms/worksContent";
+import { getIcon } from "@/app/lib/cms/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const galleryWorks = [
+const defaultGalleryWorks = [
   {
     title: "Industrial Vibe",
     category: "Brand Identity",
@@ -140,7 +141,7 @@ const galleryWorks = [
   },
 ];
 
-const galleryTitle = "THE GALLERY";
+const defaultGalleryTitle = "THE GALLERY";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -299,8 +300,11 @@ const handleGalleryMove = (e: React.PointerEvent<HTMLAnchorElement>) => {
 };
 /* ─── component ───────────────────────────────────────────────────────────── */
 
-export default function WorksGrid() {
+export default function WorksGrid({ content = defaultWorksContent }: { content?: WorksContent }) {
   const [activeFilter, setActiveFilter] = useState("All");
+  const works = content.grid.items;
+  const galleryWorks = content.gallery.items?.length ? content.gallery.items : defaultGalleryWorks;
+  const galleryTitle = content.gallery.title || defaultGalleryTitle;
 
   const gridRef    = useRef<HTMLElement | null>(null);
   const galleryRef = useRef<HTMLElement | null>(null);
@@ -309,12 +313,12 @@ export default function WorksGrid() {
   const filters = useMemo(() => {
     const cats = works.map((w) => w.category);
     return ["All", ...Array.from(new Set(cats))];
-  }, []);
+  }, [works]);
 
   const filteredWorks = useMemo(() => {
     if (activeFilter === "All") return works;
     return works.filter((w) => w.category === activeFilter);
-  }, [activeFilter]);
+  }, [activeFilter, works]);
 
   /* grid entrance animation */
   useLayoutEffect(() => {
@@ -333,7 +337,7 @@ export default function WorksGrid() {
     }, root);
 
     return () => ctx.revert();
-  }, [activeFilter]);
+  }, [activeFilter, works]);
 
   /* gallery horizontal scroll */
   useLayoutEffect(() => {
@@ -427,12 +431,12 @@ export default function WorksGrid() {
           <div className="mb-9 flex flex-col items-start justify-between gap-5 md:flex-row md:items-end">
             <div>
               <span className="mb-4 inline-flex rounded-full border border-hook-red/15 bg-hook-red/5 px-4 py-2 text-xs font-black text-hook-red">
-                SELECTED WORKS
+                {content.grid.badge}
               </span>
-              <h2 className="text-4xl font-black text-white md:text-6xl">أعمال مختارة</h2>
+              <h2 className="text-4xl font-black text-white md:text-6xl">{content.grid.title}</h2>
             </div>
             <p className="max-w-md text-sm leading-7 text-gray-400">
-              اختار النوع وشوف الأعمال المناسبة بسرعة من غير زحمة.
+              {content.grid.description}
             </p>
           </div>
 
@@ -460,7 +464,7 @@ export default function WorksGrid() {
           {/* cards */}
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredWorks.map((work) => {
-              const Icon = work.icon;
+              const Icon = getIcon(work.icon);
               return (
                 <article
                   key={work.title}
@@ -515,7 +519,7 @@ export default function WorksGrid() {
           className="relative z-30 mb-10 px-6 text-left lg:absolute lg:left-12 lg:top-[4.2vh] lg:mb-0 lg:px-0"
         >
           <span className="mb-5 inline-flex rounded-full border border-white/[0.08] bg-white/[0.04] px-5 py-2.5 text-xs font-black uppercase tracking-[0.24em] text-gray-400 backdrop-blur-md">
-            Case Gallery
+            {content.gallery.badge}
           </span>
           <h2
             aria-label={galleryTitle}
