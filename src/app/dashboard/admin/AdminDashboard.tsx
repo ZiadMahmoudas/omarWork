@@ -460,7 +460,7 @@ export default function AdminDashboard() {
     setError(null);
     try {
       await Promise.all([saveHomeContent(content, session.access_token), saveWorksContent(worksContent, session.access_token)]);
-      setMessage("تم الحفظ بنجاح ");
+      setMessage("تم الحفظ بنجاح على Supabase");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save content");
     } finally {
@@ -889,6 +889,7 @@ export default function AdminDashboard() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div>
             <h1 className="text-2xl font-black">Hook CMS Dashboard</h1>
+            <p className="text-xs text-white/45">حقول مباشرة بدل JSON — تعديل Home وأعمالنا من Supabase</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <a href="/" target="_blank" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white/5">
@@ -913,6 +914,7 @@ export default function AdminDashboard() {
             <Database className="h-5 w-5 text-hook-red" />
             <div>
               <p className="text-sm font-black">Sections</p>
+              <p className="text-xs text-white/40">اختار وعدل من غير JSON</p>
             </div>
           </div>
           <div className="max-h-[calc(100vh-190px)] space-y-2 overflow-auto pr-1">
